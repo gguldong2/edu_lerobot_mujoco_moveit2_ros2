@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+build/
+install/
+log/
+artifacts/
+*.swp
+.DS_Store
+.tmp/
+venvs/

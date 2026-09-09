@@ -1,0 +1,50 @@
+# Model <-> motor contract for the real backend.
+#
+# limits: taken from the expanded URDF (verified, radians). Do not edit these to make
+#         a motion "fit" - fix the model or the goal instead.
+# id:     Feetech motor id as declared by the upstream ros2_control macro.
+# sign / offset_rad: FILL IN AT HOME, one joint at a time.
+#         q_ros = sign * q_motor_rad + offset_rad
+#         Verify by commanding +0.1 rad and checking the physical direction.
+units:
+  arm: rad
+  length: m
+  note: >
+    LeRobot may expose degrees or 0-100 normalised values depending on version and
+    calibration. Convert per joint; never apply one rad/deg factor to the gripper too.
+
+joints:
+  shoulder_pan:
+    id: 1
+    limits: { lower: -1.91986, upper: 1.91986 }
+    sign: 1
+    offset_rad: 0.0
+  shoulder_lift:
+    id: 2
+    limits: { lower: -1.74533, upper: 1.74533 }
+    sign: 1
+    offset_rad: 0.0
+  elbow_flex:
+    id: 3
+    limits: { lower: -1.69, upper: 1.69 }
+    sign: 1
+    offset_rad: 0.0
+  wrist_flex:
+    id: 4
+    limits: { lower: -1.65806, upper: 1.65806 }
+    sign: 1
+    offset_rad: 0.0
+  wrist_roll:
+    id: 5
+    limits: { lower: -2.74385, upper: 2.84121 }
+    sign: 1
+    offset_rad: 0.0
+  gripper:
+    id: 6
+    limits: { lower: -0.174533, upper: 1.74533 }
+    sign: 1
+    offset_rad: 0.0
+    # SRDF named states (reused from upstream): open = 1.5, closed = -0.16 rad.
+    # Both are inside the URDF limits above - checked.
+    open_rad: 1.5
+    closed_rad: -0.16

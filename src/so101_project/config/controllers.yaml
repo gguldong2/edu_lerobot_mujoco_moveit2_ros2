@@ -1,0 +1,61 @@
+# ros2_control controllers for the SO-101 follower.
+#
+# Used by BOTH the plain controller_manager (mock / real) and the
+# mujoco_ros2_control ros2_control_node (mujoco): identical controller names and
+# action namespaces, so MoveIt config never changes between backends.
+#
+# Interfaces match the URDF exactly (verified by expanding the xacro):
+#   command: position          state: position, velocity
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz - keep >= 2x the trajectory sampling you expect
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    gripper_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+arm_controller:
+  ros__parameters:
+    joints:
+      - shoulder_pan
+      - shoulder_lift
+      - elbow_flex
+      - wrist_flex
+      - wrist_roll
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    allow_partial_joints_goal: false
+    # Start-state check: MoveIt sends trajectories that begin at the measured state.
+    open_loop_control: false
+    constraints:
+      stopped_velocity_tolerance: 0.05
+      goal_time: 2.0          # seconds of grace after the trajectory ends
+      shoulder_pan:  { trajectory: 0.30, goal: 0.05 }
+      shoulder_lift: { trajectory: 0.30, goal: 0.05 }
+      elbow_flex:    { trajectory: 0.30, goal: 0.05 }
+      wrist_flex:    { trajectory: 0.30, goal: 0.05 }
+      wrist_roll:    { trajectory: 0.30, goal: 0.05 }
+
+gripper_controller:
+  ros__parameters:
+    joints:
+      - gripper
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    allow_partial_joints_goal: false
+    open_loop_control: false
+    constraints:
+      stopped_velocity_tolerance: 0.05
+      goal_time: 2.0
+      gripper: { trajectory: 0.40, goal: 0.10 }   # jaws stall on contact - keep loose

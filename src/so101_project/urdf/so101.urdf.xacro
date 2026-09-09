@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<!--
+  Project top level model.
+
+  Reuses the upstream geometry macros unchanged and only swaps the ros2_control
+  backend. The robot name MUST stay `so101_arm`: the reused SRDF
+  (so101_project_moveit_config/config/so101_arm.srdf) declares <robot name="so101_arm">.
+
+  Examples:
+    xacro so101.urdf.xacro hardware_type:=mock
+    xacro so101.urdf.xacro hardware_type:=mujoco mujoco_model:=/abs/path/scene.xml
+    xacro so101.urdf.xacro hardware_type:=real   usb_port:=/dev/ttyACM0
+-->
+<robot name="so101_arm" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="variant"            default="follower"/>      <!-- follower | leader -->
+  <xacro:arg name="mesh_dir"           default="package://so101_description/meshes"/>
+  <xacro:arg name="hardware_type"      default="mock"/>          <!-- mock | mujoco | real -->
+  <xacro:arg name="usb_port"           default="/dev/ttyACM0"/>
+  <xacro:arg name="joint_config_file"  default=""/>
+  <xacro:arg name="mujoco_model"       default=""/>
+  <xacro:arg name="mujoco_headless"    default="false"/>
+  <xacro:arg name="mujoco_keyframe"    default=""/>        <!-- MJCF keyframe 이름, 예: rest -->
+  <xacro:arg name="sim_speed_factor"   default="1.0"/>
+
+  <xacro:property name="variant" value="$(arg variant)"/>
+
+  <!-- upstream geometry -->
+  <xacro:include filename="$(find so101_description)/urdf/so101_macros.xacro"/>
+  <xacro:include filename="$(find so101_description)/urdf/so101_materials.xacro"/>
+  <xacro:include filename="$(find so101_description)/urdf/so101_arm_common.xacro"/>
+  <xacro:include filename="$(find so101_description)/urdf/end_effectors/so101_ee_common.xacro"/>
+  <xacro:include filename="$(find so101_description)/urdf/end_effectors/so101_ee_leader.xacro"/>
+  <xacro:include filename="$(find so101_description)/urdf/end_effectors/so101_ee_follower.xacro"/>
+
+  <!-- project backends (mock | mujoco | real) -->
+  <xacro:include filename="$(find so101_project)/urdf/so101_ros2_control_backends.xacro"/>
+
+  <xacro:so101_materials/>
+
+  <xacro:so101_arm_common
+    mesh_dir="$(arg mesh_dir)"
+    add_transmissions="false"/>
+
+  <xacro:if value="${variant == 'leader'}">
+    <xacro:so101_ee_leader mesh_dir="$(arg mesh_dir)" add_transmissions="false"/>
+  </xacro:if>
+  <xacro:if value="${variant == 'follower'}">
+    <xacro:so101_ee_follower mesh_dir="$(arg mesh_dir)" add_transmissions="false"/>
+  </xacro:if>
+
+  <xacro:so101_ros2_control_backends
+    variant="${variant}"
+    hardware_type="$(arg hardware_type)"
+    usb_port="$(arg usb_port)"
+    joint_config_file="$(arg joint_config_file)"
+    mujoco_model="$(arg mujoco_model)"
+    mujoco_headless="$(arg mujoco_headless)"
+    mujoco_keyframe="$(arg mujoco_keyframe)"
+    sim_speed_factor="$(arg sim_speed_factor)"
+    system_name="SO101_${variant}_SYSTEM"/>
+</robot>
