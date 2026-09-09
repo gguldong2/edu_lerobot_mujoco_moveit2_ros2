@@ -43,7 +43,7 @@ print("  keyframes in so101.xml:", [k.get('name') for k in kf] if kf is not None
 PY
 
   echo
-  echo "== open it without ROS (optional, needs pip mujoco) =="
+  echo "== open it without ROS =="
   echo "  python3 -m venv ~/venvs/mujoco && source ~/venvs/mujoco/bin/activate && pip install mujoco"
   echo "  python3 -m mujoco.viewer --mjcf=$MJ/scene.xml"
   echo

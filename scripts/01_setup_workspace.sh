@@ -10,6 +10,10 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WS="${SO101_WS:-$HOME/so101_ws}"
 UPSTREAM_URL="https://github.com/legalaspro/so101-ros-physical-ai.git"
+# 업스트림을 커밋으로 고정한다. 이 프로젝트는 업스트림의 SRDF 그룹 이름(manipulator)과
+# 파일 배치를 전제로 sed 패치를 걸기 때문에, 최신 main 을 따라가면 어느 날 조용히 어긋난다.
+# 최신을 쓰고 싶으면:  SO101_UPSTREAM_REF=main ./scripts/01_setup_workspace.sh
+UPSTREAM_REF="${SO101_UPSTREAM_REF:-58318c905a2c61289fa907de85cb8473322fbe68}"
 RUN_ROSDEP=0
 WITH_REAL=0
 for a in "$@"; do
@@ -34,12 +38,26 @@ echo "== workspace $WS =="
 mkdir -p "$WS/src" "$WS/vendor" "$WS/artifacts"
 
 echo "== upstream model/driver =="
-if [ ! -d "$WS/vendor/so101-ros-physical-ai/.git" ]; then
-  git clone --recurse-submodules "$UPSTREAM_URL" "$WS/vendor/so101-ros-physical-ai"
+UP="$WS/vendor/so101-ros-physical-ai"
+if [ ! -d "$UP/.git" ]; then
+  git clone "$UPSTREAM_URL" "$UP"
+  if [ "$UPSTREAM_REF" != "main" ]; then
+    git -C "$UP" checkout --quiet "$UPSTREAM_REF" || {
+      echo "ERROR: 업스트림 커밋 $UPSTREAM_REF 를 찾을 수 없다." >&2
+      echo "       SO101_UPSTREAM_REF=main 으로 최신을 시도해 볼 수 있다(패치가 어긋날 수 있다)." >&2
+      exit 1
+    }
+  fi
+  git -C "$UP" submodule update --init --recursive || \
+    echo "  NOTE: 서브모듈 체크아웃 실패 - 실물 드라이버만 영향을 받는다(시뮬레이션은 무관)"
 else
   echo "  already cloned; leaving it at the current commit on purpose"
+  HAVE="$(git -C "$UP" rev-parse HEAD)"
+  if [ "$UPSTREAM_REF" != "main" ] && [ "$HAVE" != "$UPSTREAM_REF" ]; then
+    echo "  NOTE: 고정 커밋과 다르다 (있는 것 ${HAVE:0:8}, 고정 ${UPSTREAM_REF:0:8})."
+    echo "        맞추려면:  git -C $UP checkout $UPSTREAM_REF"
+  fi
 fi
-UP="$WS/vendor/so101-ros-physical-ai"
 git -C "$UP" rev-parse HEAD > "$WS/artifacts/so101_upstream_commit.txt"
 
 # colcon 은 워크스페이스 아래 모든 디렉터리를 훑기 때문에 vendor/ 안의 업스트림 패키지
@@ -61,6 +79,11 @@ fi
 echo "== MoveIt config: copy upstream, rename, repoint controllers =="
 MC="$WS/src/so101_project_moveit_config"
 if [ ! -d "$MC" ]; then
+  [ -d "$UP/so101_moveit_config" ] || {
+    echo "ERROR: 업스트림에 so101_moveit_config 가 없다 ($UP)." >&2
+    echo "       업스트림 구조가 바뀐 것이다. UPSTREAM_REF 고정값을 확인하라." >&2
+    exit 1
+  }
   cp -r "$UP/so101_moveit_config" "$MC"
   # 1) package name (dir name alone is not enough - package.xml/CMakeLists decide)
   grep -rl 'so101_moveit_config' "$MC" | xargs -r sed -i 's/so101_moveit_config/so101_project_moveit_config/g'
@@ -72,7 +95,14 @@ if [ ! -d "$MC" ]; then
 else
   echo "  $MC already exists, not touching it"
 fi
-echo "  leftover 'manipulator' references: $(grep -rc 'manipulator' "$MC" 2>/dev/null | grep -v ':0$' | wc -l) file(s) (want 0)"
+LEFT=$(grep -rl 'manipulator' "$MC" 2>/dev/null | wc -l)
+echo "  leftover 'manipulator' references: $LEFT file(s) (want 0)"
+if [ "$LEFT" != "0" ]; then
+  echo "  WARNING: 그룹 이름 치환이 덜 됐다. 업스트림 구조가 바뀌었을 수 있다." >&2
+fi
+# 우리 launch 는 SRDF 파일 이름을 config/so101_arm.srdf 로 가정한다
+[ -f "$MC/config/so101_arm.srdf" ] || \
+  echo "  WARNING: $MC/config/so101_arm.srdf 가 없다. bringup 이 실패한다." >&2
 
 if [ "$RUN_ROSDEP" = 1 ]; then
   echo "== rosdep (may ask for your password) =="

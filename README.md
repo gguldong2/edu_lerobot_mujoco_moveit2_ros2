@@ -95,6 +95,57 @@ ros2 run so101_project group_goal_client.py --group arm --named extended --execu
 
 ---
 
+## 다른 환경에서 실행할 때 — 선행 조건과 주의
+
+`git clone` 후 `00 → 01 → 02 → 03 → 06` 순서면 동작한다. 아래만 확인하면 된다.
+
+### 반드시 필요한 것
+
+| 항목 | 내용 |
+|---|---|
+| **배포판** | Ubuntu **24.04 (noble)** 전용이다. `00`이 codename을 검사하고 아니면 중단한다. 22.04/Humble 경로는 [docs/01 부록](docs/01_작업계획서_블로그대응_및_의사결정.md)에 분석만 있고 스크립트는 지원하지 않는다 |
+| **sudo·인터넷·디스크** | `00`만 sudo가 필요하다. 다운로드 약 6 GB, 20~40분 |
+| **화면** | RViz·MuJoCo 창을 보려면 디스플레이가 필요하다(WSLg 또는 X11). 헤드리스 서버라면 `./scripts/06_bringup.sh mujoco mujoco_headless:=true use_rviz:=false` |
+
+### 여러 명이 같은 네트워크에서 할 때 (교육·실습)
+
+**각자 다른 `ROS_DOMAIN_ID`를 쓴다.** 기본값 0을 그대로 두면 같은 LAN의 다른 사람 노드가
+서로 보이고, 두 사람의 컨트롤러가 같은 로봇 이름으로 명령을 주고받아 엉킨다.
+
+```bash
+echo 'export ROS_DOMAIN_ID=7' >> ~/.bashrc   # 0~101 중 각자 다른 값
+```
+
+`scripts/env.sh`는 이 값을 존중하고, DDS 프로필도 해당 도메인 포트로 만들어 준다.
+
+### 실물 로봇을 붙일 때
+
+```bash
+sudo usermod -aG dialout $USER    # /dev/ttyACM* 접근 권한. 로그아웃 후 다시 로그인해야 적용된다
+```
+
+WSL에서는 그 전에 Windows에서 USB를 넘겨야 한다(`usbipd attach --wsl --busid ...`).
+자세한 순서는 [docs/05 8절](docs/05_미션_가이드.md), [docs/02 3절](docs/02_실행내역_및_집에서_할일.md).
+
+### 알아 두면 좋은 것
+
+| 상황 | 대처 |
+|---|---|
+| `~/so101_ws`를 이미 다른 용도로 쓰고 있다 | `export SO101_WS=~/다른_경로` (모든 스크립트가 존중한다) |
+| 업스트림 모델이 바뀌어 깨질까 걱정된다 | `01`이 업스트림을 **커밋 `58318c9`로 고정**한다. 최신을 쓰려면 `SO101_UPSTREAM_REF=main ./scripts/01_setup_workspace.sh` (그룹 이름 치환이 어긋날 수 있다) |
+| MoveIt 설정을 처음부터 다시 만들고 싶다 | `01`은 `$SO101_WS/src/so101_project_moveit_config`가 이미 있으면 건드리지 않는다. 지우고 다시 실행하면 새로 패치한다 |
+| WSL에서 노드끼리 통신이 안 된다 | `./scripts/07_doctor.sh` — mirrored 네트워킹을 감지해 자동 우회한다(아래 절) |
+| 이 저장소가 private이다 | 다른 사람이 clone하려면 접근 권한을 주거나 공개로 전환해야 한다 |
+
+### 재현 검증 (2026-09-10)
+
+빈 폴더에 새로 clone → **별도 워크스페이스**(`SO101_WS=...`)로 `01` 실행 →
+`so101_description`·`so101_project`·`so101_project_moveit_config`·`feetech_ros2_driver`
+**4개 패키지 빌드 성공(1분 53초)** → `02`(URDF 3개 백엔드 전개)·`03`(MJCF 대조) 통과.
+실행 권한도 clone 후 그대로 유지된다(`-rwxr-xr-x`).
+
+---
+
 ## 무엇을 보면 정상인가
 
 창 두 개와 터미널이 각각 다른 것을 보여준다. **판정은 화면이 아니라 터미널 숫자로 한다.**
